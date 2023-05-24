@@ -10,14 +10,19 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-##CREATE TABLE IN DB
+current_user = None
+
+# CREATE TABLE IN DB
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(100))
     name = db.Column(db.String(1000))
 
-#Line below only required once, when creating DB. 
+
+# Line below only required once, when creating DB.
 # db.create_all()
 
 
@@ -35,19 +40,30 @@ def register():
             db.session.commit()
         except:
             db.session.rollback()
-        return redirect(url_for('secrets', user_email=new_user.email))
+        return redirect(url_for('login'))
     return render_template("register.html")
 
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    global current_user
+    if request.form:
+        email = request.form['email']
+        password = request.form['password']
+
+        user = User.query.filter_by(email=email).first()
+        if user != None and user.password == password:
+            current_user = user
+            return redirect(url_for('secrets'))
     return render_template("login.html")
 
 
-@app.route('/secrets/<user_email>')
-def secrets(user_email):
-    user = User.query.filter_by(email=user_email).first()
-    return render_template("secrets.html", user=user)
+@app.route('/secrets')
+def secrets():
+    global current_user
+    if current_user != None:
+        return render_template("secrets.html", user=current_user)
+    return redirect(url_for('home'))
 
 
 @app.route('/logout')
